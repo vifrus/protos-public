@@ -1,6 +1,18 @@
 -- Dialog Base
 -- A top-down game with a character, an interactive object, and a Pokemon GBA-style dialog system
 
+-- Virtual resolution (game always renders at this size)
+local VIRTUAL_W = 800
+local VIRTUAL_H = 600
+
+-- Scaling state
+local gameCanvas = nil
+local scaleX = 1
+local scaleY = 1
+local scale = 1
+local offsetX = 0
+local offsetY = 0
+
 -- Game state
 local player = {}
 local crystal = {}
@@ -116,13 +128,30 @@ local function spawnParticles(x, y, count, color)
     end
 end
 
+-- Calculate scale to fit virtual resolution in actual window (with letterboxing)
+local function updateScale()
+    local w, h = love.graphics.getDimensions()
+    scaleX = w / VIRTUAL_W
+    scaleY = h / VIRTUAL_H
+    scale = math.min(scaleX, scaleY)
+    offsetX = math.floor((w - VIRTUAL_W * scale) / 2)
+    offsetY = math.floor((h - VIRTUAL_H * scale) / 2)
+end
+
+-- Convert screen coordinates to virtual game coordinates
+local function screenToGame(sx, sy)
+    local gx = (sx - offsetX) / scale
+    local gy = (sy - offsetY) / scale
+    return gx, gy
+end
+
 -- Generate some grass patches for the ground
 local function generateGrass()
     math.randomseed(42) -- Fixed seed for consistent look
     for i = 1, 80 do
         table.insert(grass, {
-            x = math.random(0, 800),
-            y = math.random(0, 600),
+            x = math.random(0, VIRTUAL_W),
+            y = math.random(0, VIRTUAL_H),
             size = 3 + math.random() * 5,
             shade = 0.15 + math.random() * 0.15,
         })
@@ -131,7 +160,13 @@ local function generateGrass()
 end
 
 function love.load()
-    love.graphics.setBackgroundColor(0.18, 0.25, 0.18)
+    love.graphics.setBackgroundColor(0, 0, 0)
+
+    -- Create canvas at virtual resolution
+    gameCanvas = love.graphics.newCanvas(VIRTUAL_W, VIRTUAL_H)
+
+    -- Calculate initial scale
+    updateScale()
 
     -- Fonts
     gameFont = love.graphics.newFont(14)
@@ -347,9 +382,9 @@ function love.update(dt)
         player.x = player.x + dx * player.speed * dt
         player.y = player.y + dy * player.speed * dt
 
-        -- Clamp to screen
-        player.x = math.max(player.size, math.min(800 - player.size, player.x))
-        player.y = math.max(player.size, math.min(600 - player.size, player.y))
+        -- Clamp to virtual screen
+        player.x = math.max(player.size, math.min(VIRTUAL_W - player.size, player.x))
+        player.y = math.max(player.size, math.min(VIRTUAL_H - player.size, player.y))
 
         -- Check proximity to crystal
         if not crystal.broken then
@@ -546,7 +581,7 @@ local function drawGround()
 
     -- Draw a small path from left to right
     love.graphics.setColor(0.28, 0.25, 0.2, 0.4)
-    for px = 0, 800, 20 do
+    for px = 0, VIRTUAL_W, 20 do
         local py = 300 + math.sin(px * 0.01) * 15
         love.graphics.ellipse("fill", px, py, 15, 8)
     end
@@ -610,15 +645,19 @@ local function drawHUD()
     love.graphics.setFont(smallFont)
     love.graphics.setColor(1, 1, 1, 0.6)
     if crystal.broken then
-        love.graphics.printf("El cristal se ha roto... pero sus palabras quedan.", 0, 10, 800, "center")
+        love.graphics.printf("El cristal se ha roto... pero sus palabras quedan.", 0, 10, VIRTUAL_W, "center")
     elseif crystal.dialogDone then
-        love.graphics.printf("El cristal esta cambiando...", 0, 10, 800, "center")
+        love.graphics.printf("El cristal esta cambiando...", 0, 10, VIRTUAL_W, "center")
     elseif not crystal.interacted then
-        love.graphics.printf("Muevete con WASD/Flechas - Acercate al cristal", 0, 10, 800, "center")
+        love.graphics.printf("Muevete con WASD/Flechas - Acercate al cristal", 0, 10, VIRTUAL_W, "center")
     end
 end
 
 function love.draw()
+    -- Render everything to the virtual resolution canvas
+    love.graphics.setCanvas(gameCanvas)
+    love.graphics.clear(0.18, 0.25, 0.18)
+
     love.graphics.push()
 
     -- Apply screen shake
@@ -649,6 +688,17 @@ function love.draw()
     drawDialogBox()
     drawTouchControls()
     drawHUD()
+
+    -- Stop rendering to canvas
+    love.graphics.setCanvas()
+
+    -- Draw the canvas scaled and centered on the actual screen
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(gameCanvas, offsetX, offsetY, 0, scale, scale)
+end
+
+function love.resize(w, h)
+    updateScale()
 end
 
 function love.keypressed(key)
@@ -663,12 +713,8 @@ end
 
 -- Touch support
 function love.touchpressed(id, x, y)
-    -- Scale touch coordinates if window is resized
-    local w, h = love.graphics.getDimensions()
-    local sx = 800 / w
-    local sy = 600 / h
-    local tx = x * sx
-    local ty = y * sy
+    -- Convert screen coordinates to virtual game coordinates
+    local tx, ty = screenToGame(x, y)
 
     if dialog.active then
         -- Tap anywhere to advance dialog
@@ -700,11 +746,7 @@ end
 
 function love.touchmoved(id, x, y)
     if touchMove.active and touchMove.id == id then
-        local w, h = love.graphics.getDimensions()
-        local sx = 800 / w
-        local sy = 600 / h
-        local tx = x * sx
-        local ty = y * sy
+        local tx, ty = screenToGame(x, y)
 
         local ddx = tx - touchMove.startX
         local ddy = ty - touchMove.startY
