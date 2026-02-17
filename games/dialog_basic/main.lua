@@ -1,5 +1,10 @@
 -- Dialog Base
 -- A top-down game with a character, an interactive object, and a Pokemon GBA-style dialog system
+-- Portrait layout (360x640) for mobile
+
+-- Virtual resolution constants
+local W = 360
+local H = 640
 
 -- Game state
 local player = {}
@@ -119,11 +124,11 @@ end
 -- Generate some grass patches for the ground
 local function generateGrass()
     math.randomseed(42) -- Fixed seed for consistent look
-    for i = 1, 80 do
+    for i = 1, 60 do
         table.insert(grass, {
-            x = math.random(0, 800),
-            y = math.random(0, 600),
-            size = 3 + math.random() * 5,
+            x = math.random(0, W),
+            y = math.random(0, H),
+            size = 2 + math.random() * 4,
             shade = 0.15 + math.random() * 0.15,
         })
     end
@@ -133,31 +138,31 @@ end
 function love.load()
     love.graphics.setBackgroundColor(0.18, 0.25, 0.18)
 
-    -- Fonts
-    gameFont = love.graphics.newFont(14)
-    dialogFont = love.graphics.newFont(18)
-    smallFont = love.graphics.newFont(11)
+    -- Fonts (slightly smaller for portrait)
+    gameFont = love.graphics.newFont(12)
+    dialogFont = love.graphics.newFont(15)
+    smallFont = love.graphics.newFont(10)
 
-    -- Player setup
+    -- Player setup (bottom half of screen)
     player = {
-        x = 200,
-        y = 300,
-        size = 16,
-        speed = 150,
+        x = W * 0.5,
+        y = H * 0.65,
+        size = 14,
+        speed = 120,
         color = { 0.3, 0.5, 0.9 },
-        direction = "down", -- down, up, left, right
+        direction = "up",
         animTimer = 0,
         walking = false,
     }
 
-    -- Crystal/object setup
+    -- Crystal/object setup (upper area)
     crystal = {
-        x = 580,
-        y = 280,
-        size = 24,
+        x = W * 0.5,
+        y = H * 0.25,
+        size = 22,
         color = { 0.9, 0.4, 0.8 },
         glowTimer = 0,
-        crackLevel = 0, -- 0 = intact, 1-3 = cracking, 4 = broken
+        crackLevel = 0,
         broken = false,
         interacted = false,
         dialogDone = false,
@@ -204,10 +209,8 @@ end
 
 local function advanceDialog()
     if dialog.finished then
-        -- Close dialog
         dialog.active = false
         crystal.dialogDone = true
-        -- Start breaking the crystal
         crystal.crackLevel = 1
         sounds.crack:stop()
         sounds.crack:play()
@@ -218,12 +221,10 @@ local function advanceDialog()
     end
 
     if dialog.waitingForInput then
-        -- Go to next line
         dialog.lineIndex = dialog.lineIndex + 1
         if dialog.lineIndex > #dialogLines then
             dialog.finished = true
             dialog.waitingForInput = false
-            -- Show last line completed
             dialog.charIndex = #dialogLines[#dialogLines]
             return
         end
@@ -233,22 +234,18 @@ local function advanceDialog()
         sounds.blip:stop()
         sounds.blip:play()
     else
-        -- Fast forward current line
         dialog.charIndex = #dialogLines[dialog.lineIndex]
         dialog.waitingForInput = true
     end
 end
 
 function love.update(dt)
-    -- Update dialog arrow animation
     dialogArrowTimer = dialogArrowTimer + dt
 
-    -- Screen shake
     if screenShake.timer > 0 then
         screenShake.timer = screenShake.timer - dt
     end
 
-    -- Crystal glow
     crystal.glowTimer = crystal.glowTimer + dt
 
     -- Crystal breaking progression after dialog
@@ -287,7 +284,6 @@ function love.update(dt)
         if dialog.charTimer >= dialog.charSpeed then
             dialog.charTimer = dialog.charTimer - dialog.charSpeed
             dialog.charIndex = dialog.charIndex + 1
-            -- Play blip sound every few characters
             if dialog.charIndex % 3 == 0 then
                 sounds.blip:stop()
                 sounds.blip:play()
@@ -304,7 +300,6 @@ function love.update(dt)
     if not dialog.active then
         local dx, dy = 0, 0
 
-        -- Keyboard input
         if love.keyboard.isDown("w") or love.keyboard.isDown("up") then
             dy = -1
         end
@@ -318,13 +313,11 @@ function love.update(dt)
             dx = 1
         end
 
-        -- Touch input for movement
         if touchMove.active then
             dx = touchMove.dx
             dy = touchMove.dy
         end
 
-        -- Normalize diagonal
         if dx ~= 0 and dy ~= 0 then
             local len = math.sqrt(dx * dx + dy * dy)
             dx = dx / len
@@ -334,7 +327,6 @@ function love.update(dt)
         player.walking = (dx ~= 0 or dy ~= 0)
         if player.walking then
             player.animTimer = player.animTimer + dt
-            -- Set direction
             if math.abs(dx) > math.abs(dy) then
                 player.direction = dx > 0 and "right" or "left"
             else
@@ -348,13 +340,13 @@ function love.update(dt)
         player.y = player.y + dy * player.speed * dt
 
         -- Clamp to screen
-        player.x = math.max(player.size, math.min(800 - player.size, player.x))
-        player.y = math.max(player.size, math.min(600 - player.size, player.y))
+        player.x = math.max(player.size, math.min(W - player.size, player.x))
+        player.y = math.max(player.size, math.min(H - player.size, player.y))
 
         -- Check proximity to crystal
         if not crystal.broken then
             local dist = distanceBetween(player.x, player.y, crystal.x, crystal.y)
-            interactPrompt = dist < 60 and not crystal.dialogDone
+            interactPrompt = dist < 55 and not crystal.dialogDone
         else
             interactPrompt = false
         end
@@ -365,7 +357,7 @@ function love.update(dt)
         local p = particles[i]
         p.x = p.x + p.vx * dt
         p.y = p.y + p.vy * dt
-        p.vy = p.vy + 200 * dt -- gravity
+        p.vy = p.vy + 200 * dt
         p.life = p.life - dt
         p.rotation = p.rotation + p.rotSpeed * dt
         p.size = p.size * (1 - dt * 0.5)
@@ -405,7 +397,6 @@ local function drawPlayer(px, py)
         love.graphics.rectangle("fill", px - s * 0.2, py - s * 0.6 + bobY, 3, 3)
         love.graphics.rectangle("fill", px + s * 0.1, py - s * 0.6 + bobY, 3, 3)
     elseif player.direction == "up" then
-        -- no eyes visible from back
         love.graphics.setColor(0.3, 0.2, 0.15)
         love.graphics.rectangle("fill", px - s * 0.45, py - s * 0.9 + bobY, s * 0.9, s * 0.4, 2, 2)
     elseif player.direction == "left" then
@@ -417,7 +408,6 @@ end
 
 local function drawCrystal(cx, cy)
     if crystal.broken then
-        -- Draw broken remnants on ground
         love.graphics.setColor(crystal.color[1] * 0.4, crystal.color[2] * 0.4, crystal.color[3] * 0.4, 0.5)
         love.graphics.polygon("fill", cx - 8, cy + 10, cx - 2, cy + 5, cx + 5, cy + 12)
         love.graphics.polygon("fill", cx + 3, cy + 8, cx + 10, cy + 6, cx + 7, cy + 13)
@@ -491,9 +481,9 @@ end
 local function drawDialogBox()
     if not dialog.active then return end
 
-    local boxX = 30
-    local boxY = 440
-    local boxW = 740
+    local boxX = 12
+    local boxY = H - 150
+    local boxW = W - 24
     local boxH = 130
 
     -- Dialog box background (GBA Pokemon style)
@@ -515,26 +505,26 @@ local function drawDialogBox()
     local currentLine = dialogLines[dialog.lineIndex] or ""
     local visibleText = string.sub(currentLine, 1, math.floor(dialog.charIndex))
     love.graphics.setColor(0.1, 0.1, 0.15)
-    love.graphics.printf(visibleText, boxX + 20, boxY + 20, boxW - 40, "left")
+    love.graphics.printf(visibleText, boxX + 14, boxY + 16, boxW - 28, "left")
 
     -- Line counter
     love.graphics.setFont(smallFont)
     love.graphics.setColor(0.5, 0.5, 0.6)
-    love.graphics.printf(dialog.lineIndex .. "/" .. #dialogLines, boxX + 20, boxY + boxH - 25, boxW - 40, "right")
+    love.graphics.printf(dialog.lineIndex .. "/" .. #dialogLines, boxX + 14, boxY + boxH - 22, boxW - 28, "right")
 
     -- Advance arrow (blinking)
     if dialog.waitingForInput then
         local arrowAlpha = math.sin(dialogArrowTimer * 5) * 0.3 + 0.7
         love.graphics.setColor(0.2, 0.2, 0.35, arrowAlpha)
-        local arrowX = boxX + boxW - 30
-        local arrowY = boxY + boxH - 25 + math.sin(dialogArrowTimer * 4) * 3
+        local arrowX = boxX + boxW - 24
+        local arrowY = boxY + boxH - 22 + math.sin(dialogArrowTimer * 4) * 3
         love.graphics.polygon("fill", arrowX, arrowY, arrowX + 10, arrowY, arrowX + 5, arrowY + 8)
     end
 
     -- "Tap / Press Z" hint
     love.graphics.setFont(smallFont)
     love.graphics.setColor(0.5, 0.5, 0.6)
-    love.graphics.printf("Z / Tap para continuar", boxX + 20, boxY + boxH - 25, boxW - 100, "left")
+    love.graphics.printf("Z / Tap continuar", boxX + 14, boxY + boxH - 22, boxW - 80, "left")
 end
 
 local function drawGround()
@@ -544,11 +534,11 @@ local function drawGround()
         love.graphics.circle("fill", g.x, g.y, g.size)
     end
 
-    -- Draw a small path from left to right
+    -- Draw a vertical path from player area to crystal
     love.graphics.setColor(0.28, 0.25, 0.2, 0.4)
-    for px = 0, 800, 20 do
-        local py = 300 + math.sin(px * 0.01) * 15
-        love.graphics.ellipse("fill", px, py, 15, 8)
+    for py = H * 0.2, H * 0.7, 15 do
+        local px = W * 0.5 + math.sin(py * 0.02) * 12
+        love.graphics.ellipse("fill", px, py, 10, 12)
     end
 end
 
@@ -556,19 +546,19 @@ local function drawInteractPrompt()
     if not interactPrompt or dialog.active then return end
 
     local px = crystal.x
-    local py = crystal.y - crystal.size - 30
+    local py = crystal.y - crystal.size - 28
     local bounce = math.sin(love.timer.getTime() * 4) * 3
 
     -- Background bubble
     love.graphics.setColor(0.15, 0.15, 0.25, 0.85)
-    love.graphics.rectangle("fill", px - 55, py - 12 + bounce, 110, 24, 12, 12)
+    love.graphics.rectangle("fill", px - 48, py - 10 + bounce, 96, 20, 10, 10)
     love.graphics.setColor(0.3, 0.35, 0.55, 0.9)
-    love.graphics.rectangle("line", px - 55, py - 12 + bounce, 110, 24, 12, 12)
+    love.graphics.rectangle("line", px - 48, py - 10 + bounce, 96, 20, 10, 10)
 
     -- Text
     love.graphics.setFont(smallFont)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.printf("Z / Tap objeto", px - 50, py - 7 + bounce, 100, "center")
+    love.graphics.printf("Z / Tap objeto", px - 44, py - 6 + bounce, 88, "center")
 end
 
 local function drawParticles()
@@ -584,37 +574,40 @@ local function drawParticles()
 end
 
 local function drawTouchControls()
-    -- Only show if no keyboard is likely available (always show a small hint)
+    if dialog.active then return end
+
     local alpha = 0.2
     if touchMove.active then alpha = 0.4 end
 
     -- D-pad area hint (bottom-left)
+    local padX, padY = 65, H - 85
     love.graphics.setColor(1, 1, 1, alpha)
-    love.graphics.circle("line", 100, 500, 50)
+    love.graphics.circle("line", padX, padY, 40)
     love.graphics.setColor(1, 1, 1, alpha * 0.5)
     -- Arrows
-    love.graphics.polygon("fill", 100, 460, 93, 475, 107, 475) -- up
-    love.graphics.polygon("fill", 100, 540, 93, 525, 107, 525) -- down
-    love.graphics.polygon("fill", 60, 500, 75, 493, 75, 507) -- left
-    love.graphics.polygon("fill", 140, 500, 125, 493, 125, 507) -- right
+    love.graphics.polygon("fill", padX, padY - 32, padX - 6, padY - 20, padX + 6, padY - 20) -- up
+    love.graphics.polygon("fill", padX, padY + 32, padX - 6, padY + 20, padX + 6, padY + 20) -- down
+    love.graphics.polygon("fill", padX - 32, padY, padX - 20, padY - 6, padX - 20, padY + 6) -- left
+    love.graphics.polygon("fill", padX + 32, padY, padX + 20, padY - 6, padX + 20, padY + 6) -- right
 
     -- Interact button hint (bottom-right)
+    local btnX, btnY = W - 55, H - 85
     love.graphics.setColor(1, 1, 1, alpha)
-    love.graphics.circle("line", 700, 500, 30)
+    love.graphics.circle("line", btnX, btnY, 25)
     love.graphics.setFont(smallFont)
     love.graphics.setColor(1, 1, 1, alpha * 1.5)
-    love.graphics.printf("TAP", 675, 495, 50, "center")
+    love.graphics.printf("TAP", btnX - 20, btnY - 5, 40, "center")
 end
 
 local function drawHUD()
     love.graphics.setFont(smallFont)
     love.graphics.setColor(1, 1, 1, 0.6)
     if crystal.broken then
-        love.graphics.printf("El cristal se ha roto... pero sus palabras quedan.", 0, 10, 800, "center")
+        love.graphics.printf("El cristal se ha roto...\npero sus palabras quedan.", 0, 8, W, "center")
     elseif crystal.dialogDone then
-        love.graphics.printf("El cristal esta cambiando...", 0, 10, 800, "center")
+        love.graphics.printf("El cristal esta cambiando...", 0, 8, W, "center")
     elseif not crystal.interacted then
-        love.graphics.printf("Muevete con WASD/Flechas - Acercate al cristal", 0, 10, 800, "center")
+        love.graphics.printf("Muevete con WASD/Flechas\nAcercate al cristal", 0, 8, W, "center")
     end
 end
 
@@ -663,15 +656,13 @@ end
 
 -- Touch support
 function love.touchpressed(id, x, y)
-    -- Scale touch coordinates if window is resized
-    local w, h = love.graphics.getDimensions()
-    local sx = 800 / w
-    local sy = 600 / h
+    local gw, gh = love.graphics.getDimensions()
+    local sx = W / gw
+    local sy = H / gh
     local tx = x * sx
     local ty = y * sy
 
     if dialog.active then
-        -- Tap anywhere to advance dialog
         touchDialog.active = true
         touchDialog.id = id
         advanceDialog()
@@ -681,13 +672,13 @@ function love.touchpressed(id, x, y)
     -- Check if tapping near the crystal (to interact)
     if interactPrompt then
         local dist = distanceBetween(tx, ty, crystal.x, crystal.y)
-        if dist < 80 then
+        if dist < 70 then
             startDialog()
             return
         end
     end
 
-    -- Movement touch (left half of screen primarily, but any non-crystal area)
+    -- Movement touch
     if not touchMove.active then
         touchMove.active = true
         touchMove.id = id
@@ -700,9 +691,9 @@ end
 
 function love.touchmoved(id, x, y)
     if touchMove.active and touchMove.id == id then
-        local w, h = love.graphics.getDimensions()
-        local sx = 800 / w
-        local sy = 600 / h
+        local gw, gh = love.graphics.getDimensions()
+        local sx = W / gw
+        local sy = H / gh
         local tx = x * sx
         local ty = y * sy
 
