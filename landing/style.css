@@ -6,8 +6,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #1a1a2e;
-    color: #e0e0e0;
+    background-color: #111;
+    color: #ccc;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -15,97 +15,92 @@ body {
 
 header {
     text-align: center;
-    padding: 3rem 1rem 2rem;
+    padding: 4rem 1.5rem 2rem;
 }
 
 header h1 {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    font-weight: 600;
     color: #fff;
-    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
 }
 
 header p {
-    font-size: 1.1rem;
-    color: #8888aa;
+    font-size: 0.95rem;
+    color: #777;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.5;
 }
 
 main {
     flex: 1;
     max-width: 960px;
     margin: 0 auto;
-    padding: 1rem;
+    padding: 1rem 1.5rem;
     width: 100%;
 }
 
 .game-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .game-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
-    padding: 2rem 1.5rem;
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 12px;
+    gap: 0.6rem;
+    padding: 1.75rem 1.25rem;
+    background: #1a1a1a;
+    border: 1px solid #282828;
+    border-radius: 8px;
     text-decoration: none;
-    color: #e0e0e0;
-    transition: transform 0.2s, box-shadow 0.2s;
+    color: #ccc;
+    transition: border-color 0.15s;
 }
 
 .game-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    border-color: #e94560;
+    border-color: #555;
 }
 
 .game-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #e94560, #0f3460);
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: #282828;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.75rem;
-    font-weight: bold;
+    font-size: 1.25rem;
+    font-weight: 600;
     color: #fff;
 }
 
 .game-card h2 {
-    font-size: 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
     color: #fff;
     text-align: center;
 }
 
 .game-card p {
-    font-size: 0.9rem;
-    color: #8888aa;
+    font-size: 0.8rem;
+    color: #555;
 }
 
 footer {
     text-align: center;
-    padding: 2rem 1rem;
-    color: #555;
-    font-size: 0.85rem;
-}
-
-footer a {
-    color: #e94560;
-    text-decoration: none;
-}
-
-footer a:hover {
-    text-decoration: underline;
+    padding: 3rem 1rem 2rem;
+    color: #444;
+    font-size: 0.8rem;
 }
 
 @media (max-width: 600px) {
     header h1 {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
     }
 
     .game-grid {
