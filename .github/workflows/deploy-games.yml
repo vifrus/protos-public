@@ -1,0 +1,88 @@
+name: Build and Deploy LOVE Games
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install love.js
+        run: npm install -g love.js
+
+      - name: Create output directory
+        run: mkdir -p dist/games
+
+      - name: Build games
+        run: |
+          for game_dir in games/*/; do
+            [ -f "$game_dir/main.lua" ] || continue
+
+            game_name=$(basename "$game_dir")
+            echo "::group::Building $game_name"
+
+            # Extract title from conf.lua or use directory name
+            title="$game_name"
+            if [ -f "$game_dir/conf.lua" ]; then
+              extracted=$(grep -oP 't\.title\s*=\s*"\K[^"]+' "$game_dir/conf.lua" || true)
+              [ -n "$extracted" ] && title="$extracted"
+            fi
+
+            echo "Title: $title"
+            love.js --title "$title" --compatibility "$game_dir" "dist/games/$game_name"
+
+            echo "::endgroup::"
+          done
+
+      - name: Flatten game build output
+        run: |
+          for game_dir in dist/games/*/; do
+            game_name=$(basename "$game_dir")
+            echo "Flattening $game_name..."
+
+            if [ -d "$game_dir/release-compatibility" ]; then
+              cp -r "$game_dir/release-compatibility/"* "$game_dir/"
+              rm -rf "$game_dir/debug" "$game_dir/release" "$game_dir/release-compatibility"
+            elif [ -d "$game_dir/release" ]; then
+              cp -r "$game_dir/release/"* "$game_dir/"
+              rm -rf "$game_dir/debug" "$game_dir/release"
+            fi
+          done
+
+      - name: Generate landing page
+        run: bash scripts/generate-index.sh games dist
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
