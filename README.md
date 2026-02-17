@@ -1,6 +1,8 @@
 # LOVE Game Portal
 
-A web portal for LOVE2D games, automatically built and deployed to GitHub Pages.
+An experiment in AI-powered game development. This project explores the potential of using artificial intelligence to create games from scratch -- every game in this portal was entirely created by AI, from the code to the game logic.
+
+The portal itself is a web platform for LOVE2D (Lua) games, automatically built and deployed to GitHub Pages using love.js.
 
 ## How It Works
 
