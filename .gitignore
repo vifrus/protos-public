@@ -39,3 +39,14 @@ luac.out
 *.x86_64
 *.hex
 
+# Build output
+build/
+dist/
+node_modules/
+
+# LOVE files (generated during build)
+*.love
+
+# OS files
+.DS_Store
+Thumbs.db
